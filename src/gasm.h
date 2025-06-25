@@ -10,8 +10,25 @@ const char * msg_help = "Usage: gasm [target] (input file) (output file)\nTarget
 // FUNCTION SIGNATURES
 
 typedef struct {
-    u8 opcode; // if "set", also load the 64-bit data
+    u8 opcode; // if "set", load the 16-bit symbol index holding the literal value or offset
     u8 sources;
 } token_t;
+
+typedef struct {
+    u8 type;    // R, W, X, @, #
+    u16 size;
+    u32 origin;
+} section_t;
+
+typedef struct {
+    u8 magic[4];
+    u16 symbols; // count, found at *end* of file
+    u16 sections;
+    section_t headers[];
+} object_t;
+
+typedef struct {
+
+} symbol_t;
 
 token_t * assembler ( char * stream );

@@ -2,7 +2,9 @@ enum { none, x86, x64, arm, risc };
 const char targets[][8] = { [x86] = "x86", [x64] = "x64", [arm] = "arm", [risc] = "risc" };
 
 enum {
-    noop,
+        // Noop
+    noop, halt,
+        // Assembly Instructions
     move, load, store, set,
     fmov, imov, fcast, icast,
     add, sub, mul, div, mod, fadd, fsub, fmul, fdiv, fmod,
@@ -12,6 +14,10 @@ enum {
     lts, gts, les, ges,
     jump, jumpr, call, ret,
     syscall, interrupt,
+        // Assembler Directives
+    readable, writable, executable,
+    define, fill, origin,
+    data8, data16, data32, data64
 };
 
 enum {

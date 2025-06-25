@@ -1,0 +1,1 @@
+void vm ( object_t * program ) {}
