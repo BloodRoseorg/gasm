@@ -44,14 +44,14 @@ into the selected section.
 `gasm` is heavily influenced by x86 Intel Assembly,
 FlatAssembler, BASIC, and Python, and looks something like:
 ```asm
-section writeable
+section .w
     hello
     u8 "Hello, World" 0
-section executable
-    immediate ar hello
-    immediate br 12
+section .x
+    set ar hello
+    set br 12
     syscall write stdout ar br
-    immediate 0
+    set ar 0
     syscall exit ar
 ```
 

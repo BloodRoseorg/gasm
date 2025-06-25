@@ -1,2 +1,4 @@
-# bytes license LICENSE const/license.h
-gcc -o out/gasm gasm.c -static
+#!/bin/sh
+FLAGS="-e __init -fno-builtin -ffreestanding -nostdlib -nodefaultlibs -nostartfiles -static -z noexecstack"
+INCLUDE="./src/lib/core.o ./src/lib/lib.o"
+gcc $FLAGS -o gasm ./src/gasm.c $INCLUDE
