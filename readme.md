@@ -1,68 +1,165 @@
-# Garter Assembler
+# Garter Assembly
 
-`gasm` is the intermediate language and assembly language
-of the [garter](https://github.com/topics/garter) compiler toolchain.
-`gasm` syntax is intended to be platform-agnostic wherever possible.
-To this end, it sometimes will have "redundancies" like `mod` to x86, 
-and will sometimes be "missing" instructions or registers that are platform-specific.
+Garter Assembly is intended to be much more
+literal and one-to-one with the emitted machine code,
+while also having syntax that makes it easy to read and write,
+and having syntax that is _generally_ agnostic of the platform it is running on.
+Every instruction keyword maps to one
+_and only one_ instruction, unlike in many other assembly dialects,
+and besides a simple preprocessor,
+this assembler is just that; 
+a simple assembler intended to be _trivial_
+to port and extend to other systems.
 
-For systems that may not have support for an instruction, such as systems which do not have floating-point registers and arithmetic, the assembler should inject an "inline library" of sorts that emulates the behavior on the target.
-
-For systems which have a simpler or more direct way of handling some series of instructions, it is okay for the assembler to optimize them _as long as optimizations are turned on_ <!-- TODO -->
-
-
-## Usage
-
-the Garter Assembler takes in `*.gasm` files and generates
-`*.gyb` [object files](https://github.com/BloodRoseorg/gyb).
-
-## Implementation
-
-Lexical analysis breaks apart the source files
-into tokens: `keywords`, `labels`/`addresses`, `constants`,
-et cetera. Then the parser iterates over the list of tokens
-and essentially "interprets" them --
-instructions will either change the assembler's internal state,
-or be translated and treated as emitter commands.
-
-Offsets into the executable section are interpreted as
-_number of instructions past section start_,
-whereas other offsets are interpreted as 
-_number of bytes past section start_.
-Making this distinction simplifies the
-emission stage, but also means that edge cases,
-such as dealing with _data in an executable section_,
-could be problematic.
-
-## How does Object Emission Work?
-
-When the assembler first starts,
-it initializes an empty object with
-a clean-slate symbol table.
-Any time we encounter symbol definitions,
-we push those to our symbol table.
-Any time we encounter instructions,
-we push those to the data sector.
-The symbol table will contain offsets within each sector,
-and when converting the object to a raw binary,
-the offsets will be recalculated during emission.
-
-# GASM Assembly
-
-`gasm` is heavily influenced by x86 Intel Assembly,
-FlatAssembler, BASIC, and Python, and looks something like:
-```asm
-writable origin 0x84006000
-    hello
-    u8 "Hello, World" 0
-executable origin 0x84000000
-    set ar hello
-    set br 12
-    syscall write stdout ar br
-    set ar 0
-    syscall exit ar
+```c
+#define SYS_EXIT 60
+section text x
+run                     ; this is redundant, but can be explicitly stated
+entry main
+    set ar 0xFFFF
+_countdown
+    sub ar 1
+    cmp ar cr
+    gt _countdown
+break
+    set ar SYS_EXIT
+    syscall
 ```
 
-For tutorials, see the `garter` website.
-For a guide on writing Garter Assembly,
-see the `garter` specification doc.
+> ![NOTE] All two-letter name symbol names 
+> are reserved by the assembler and may not be reused.
+
+## Register Names
+
+| Register | x86 Equiv | ARM Equiv |
+|--    |--  |--|
+| ar   | ax | r0  |
+| br   | bx | r1  |
+| cr   | cx | r2  |
+| dr   | dx | r3  |
+| sp   | sp | sp  | 
+| bp   | bp | r7  |
+| ip   | ip | pc  |
+| xr   | xmm0 | s1 |
+| yr   | xmm1 | s2 |
+| \*_sr_ | esi | -- |
+
+\* _sr_ is specific to x86 and only included for compatibility <br>
+
+Some registers like the `lr` on ARM systems is not included here
+because 
+1.  it is extremely platform specific,
+2.  its use is very specific to the `call`/`ret` implementation and ABI,
+    and exposing it contradicts the goals of this project
+
+## Pseudoinstructions
+
+| Keyword | Description |
+|--|--|
+| `run`         | _variable write size based on opcode_ |
+| `byte`        | 8-bit data  |
+| `word`        | 16-bit data |
+| `short`       | 32-bit data |
+| `long`        | 64-bit data |
+| `entry`       | a unique label saying where execution should begin |
+| `section`     | `section {name} {permissions}` |
+| `r`           | read-only section |
+| `w`           | read+write section |
+| `x`           | executable section |
+
+## Integer Arithmatic
+
+| Keyword | Notes |
+|--|--|
+| add   |
+| sub   | 
+| mul   | signed |
+| div   | signed |
+| and   |
+| or    |
+| xor   |
+| left  |
+| right |
+| flip  | asm: `neg x`, C: `~x` |
+| push  |
+| pop   |
+| move  | register-to-register |
+| load  | register to address in register |
+| store | register from address in register |
+| set   | register to literal value |
+
+## Float Arithmatic
+
+| Keyword | Notes |
+|--|--|
+| imove | bitwise move from int to float register |
+| fmove | bitwise move from float to int register |
+| icast | cast integer to float |
+| fcast | cast float to integer |
+| fadd   |
+| fsub   | 
+| fmul   |
+| fdiv   |
+
+## Branching Instructions
+
+| Keyword | Notes |
+|--|--|
+| compare / cmp |
+| fcompare / fcmp |
+| gotor | jump to address in register |
+| goto  | jump to literal address |
+| if |
+| not |
+| lt | unsigned |
+| le |
+| gt |
+| ge |
+| lts | signed |
+| les |
+| gts |
+| ges |
+
+## System Instructions
+
+| Keyword | Notes |
+|--|--|
+| interrupt | used for hardware interrupts |
+| syscall | used for calling system services |
+
+
+# Implementation
+
+## _Pass 0\*_
+
+Run the preprocessor on our file before doing any parsing
+
+_\* Not applicable to the bootstrapping assembler_
+
+## Pass 1
+
+Go through our file with a _state machine_-like parsing system,
+noting when sections and data emission size/type changes,
+and tracking how _far_ into each section our "write-head" would be.
+This stage needs to know how large each emission type is,
+but does not actually write any data or assemble instructions yet.
+As it goes, it defines any symbols.
+
+### Symbol Definitions
+
+Each symbol has a section and then literal data associate with it.
+There are also reserved sections for `UNDEFINED`, `UNRESOLVED`, and `LITERAL DATA`.
+
+### Emission Stack
+
+For each section, we have an _emission stack_
+which tells the emitter when it needs to change the writing type
+and what type it will change to.
+
+### Pass 2
+
+Goes back through each section and, 
+using the notes from before about where data are 
+and when the "write-head" needs to change size or move to a new section,
+it begins the actually emission to file.
+Any undefined symbols would get caught during this pass.
