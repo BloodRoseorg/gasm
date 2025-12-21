@@ -21,4 +21,4 @@ extern i64      file_size(char *filename);
 extern i64      file_read(char *filename, char *buffer, i64 max);
 extern i64      file_write(char *filename, char *content, i64 size);
 
-#define uint u32
+typedef u32 uint;

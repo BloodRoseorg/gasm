@@ -1,6 +1,8 @@
 #!/bin/sh
-FLAGS="-e __init -fno-builtin -ffreestanding -nostdlib -nodefaultlibs -nostartfiles -static -z noexecstack"
+bytes LICENSE_TEXT LICENSE ./src/LICENSE.h
+FLAGS="-std=c99 -g0 -pedantic-errors -fno-asynchronous-unwind-tables -fno-unwind-tables -e __init -fno-builtin -ffreestanding -nostdlib -nodefaultlibs -nostartfiles -static -z noexecstack"
 INCLUDE="./src/lib/core.o ./src/lib/lib.o"
 gcc $FLAGS -o gasm ./src/gasm.c $INCLUDE
 strip gasm
+cloc . --by-file --exclude-dir="proto" --exclude-ext="md"
 sizeof gasm
